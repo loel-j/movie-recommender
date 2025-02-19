@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movieslike - Movie Recommender</title>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: var(--background);
+            color: white;
+        }
+
+        .search-container {
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 1rem;
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 50px;
+            border: 2px solid var(--primary);
+        }
+
+        #movieInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.1rem;
+            padding: 0.5rem 1.5rem;
+        }
+
+        #searchBtn {
+            background: var(--primary);
+            color: var(--background);
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .movie-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 2rem;
+        }
+
+        .movie-poster {
+            width: 100%;
+            border-radius: 10px;
+            border: 2px solid var(--primary);
+        }
+
+        .similar-movies {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="movieInput" placeholder="Search for a movie...">
+            <button id="searchBtn" onclick="searchMovies()">Search</button>
+        </div>
+    </div>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api'; // Change in production
+
+        async function searchMovies() { 
+            const query = document.getElementById('movieInput').value.trim();
+            if (!query) return;
+
+            try {
+                // Search for movies
+                const searchResponse = await fetch(`${API_BASE}/search?query=${encodeURIComponent(query)}`);
+                const searchData = await searchResponse.json();
+                
+                if (searchData.results.length === 0) {
+                    showError('No movies found');
+                    return;
+                }
+
+                // Get details for first result
+                const mainMovie = searchData.results[0];
+                const detailsResponse = await fetch(`${API_BASE}/movie/${mainMovie.id}`);
+                const movieDetails = await detailsResponse.json();
+
+                // Get similar movies
+                const similarResponse = await fetch(`${API_BASE}/movie/${mainMovie.id}/similar`);
+                const similarMovies = await similarResponse.json();
+
+                displayResults(movieDetails, similarMovies.results);
+            } catch (error) {
+                showError('Failed to fetch data');
+            }
+        }
+
+        function displayResults(mainMovie, similarMovies) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="movie-card">
+                    <img src="https://image.tmdb.org/t/p/w500${mainMovie.poster_path}" 
+                         class="movie-poster" 
+                         alt="${mainMovie.title}">
+                    <div>
+                        <h2>${mainMovie.title} (${new Date(mainMovie.release_date).getFullYear()})</h2>
+                        <p>${mainMovie.overview}</p>
+                        <p>Rating: ${mainMovie.vote_average}/10</p>
+                        <h3>Similar Movies:</h3>
+                        <div class="similar-movies">
+                            ${similarMovies.slice(0, 5).map(movie => `
+                                <div class="similar-movie">
+                                    <img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" 
+                                         alt="${movie.title}"
+                                         style="width: 100%; border-radius: 8px;">
+                                    <p>${movie.title}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
